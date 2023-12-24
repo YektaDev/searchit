@@ -22,7 +22,7 @@ kobweb {
 kotlin {
     // This example is frontend only. However, for a fullstack app, you can uncomment the includeServer parameter
     // and the `jvmMain` source set below.
-    configAsKobwebApplication("searchit" /*, includeServer = true*/)
+    configAsKobwebApplication("searchit" , includeServer = true)
 
     sourceSets {
         val commonMain by getting {
@@ -45,10 +45,10 @@ kotlin {
         }
 
         // Uncomment the following if you pass `includeServer = true` into the `configAsKobwebApplication` call.
-//        val jvmMain by getting {
-//            dependencies {
-//                compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
-//            }
-//        }
+        val jvmMain by getting {
+            dependencies {
+                compileOnly(libs.kobweb.api) // Provided by Kobweb backend at runtime
+            }
+        }
     }
 }
