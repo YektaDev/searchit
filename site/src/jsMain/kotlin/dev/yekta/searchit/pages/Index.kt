@@ -1,130 +1,149 @@
 package dev.yekta.searchit.pages
 
-import androidx.compose.runtime.Composable
-import com.varabyte.kobweb.compose.css.StyleVariable
-import com.varabyte.kobweb.compose.foundation.layout.Box
+import androidx.compose.runtime.*
+import com.varabyte.kobweb.browser.api
+import com.varabyte.kobweb.compose.css.AnimationIterationCount
+import com.varabyte.kobweb.compose.css.Cursor
+import com.varabyte.kobweb.compose.css.FontWeight
 import com.varabyte.kobweb.compose.foundation.layout.Column
-import com.varabyte.kobweb.compose.foundation.layout.Row
+import com.varabyte.kobweb.compose.ui.Alignment.CenterHorizontally
 import com.varabyte.kobweb.compose.ui.Modifier
-import com.varabyte.kobweb.compose.ui.graphics.Color
-import com.varabyte.kobweb.compose.ui.graphics.Colors
 import com.varabyte.kobweb.compose.ui.modifiers.*
-import com.varabyte.kobweb.compose.ui.toAttrs
 import com.varabyte.kobweb.core.Page
-import com.varabyte.kobweb.core.rememberPageContext
-import com.varabyte.kobweb.silk.components.forms.Button
-import com.varabyte.kobweb.silk.components.layout.breakpoint.displayIfAtLeast
-import com.varabyte.kobweb.silk.components.navigation.Link
-import com.varabyte.kobweb.silk.components.style.ComponentStyle
-import com.varabyte.kobweb.silk.components.style.base
-import com.varabyte.kobweb.silk.components.style.breakpoint.Breakpoint
-import com.varabyte.kobweb.silk.components.style.toAttrs
-import com.varabyte.kobweb.silk.components.style.toModifier
+import com.varabyte.kobweb.navigation.OpenLinkStrategy.IN_NEW_TAB
+import com.varabyte.kobweb.navigation.open
+import com.varabyte.kobweb.silk.components.animation.Keyframes
+import com.varabyte.kobweb.silk.components.animation.toAnimation
+import com.varabyte.kobweb.silk.components.forms.TextInput
 import com.varabyte.kobweb.silk.components.text.SpanText
 import com.varabyte.kobweb.silk.theme.colors.ColorMode
-import com.varabyte.kobweb.silk.theme.colors.ColorSchemes
+import dev.yekta.searchit.common.Item
+import dev.yekta.searchit.common.ResultStats
+import dev.yekta.searchit.common.SearchResponse
+import dev.yekta.searchit.common.SearchResult
+import dev.yekta.searchit.components.layouts.SmallHeaderLayout
+import kotlinx.browser.window
+import kotlinx.coroutines.delay
+import kotlinx.serialization.json.Json
 import org.jetbrains.compose.web.css.*
-import org.jetbrains.compose.web.dom.Div
-import org.jetbrains.compose.web.dom.Text
-import dev.yekta.searchit.HeadlineTextStyle
-import dev.yekta.searchit.SubheadlineTextStyle
-import dev.yekta.searchit.components.layouts.PageLayout
-import dev.yekta.searchit.toSitePalette
-
-// Container that has a tagline and grid on desktop, and just the tagline on mobile
-val HeroContainerStyle by ComponentStyle {
-    base { Modifier.fillMaxWidth().gap(2.cssRem) }
-    Breakpoint.MD { Modifier.margin { top(20.vh) } }
-}
-
-// A demo grid that appears on the homepage because it looks good
-val HomeGridStyle by ComponentStyle.base {
-    Modifier
-        .gap(0.5.cssRem)
-        .width(70.cssRem)
-        .height(18.cssRem)
-}
-
-private val GridCellColorVar by StyleVariable<Color>()
-val HomeGridCellStyle by ComponentStyle.base {
-    Modifier
-        .backgroundColor(GridCellColorVar.value())
-        .boxShadow(blurRadius = 0.6.cssRem, color = GridCellColorVar.value())
-        .borderRadius(1.cssRem)
-}
-
-@Composable
-private fun GridCell(color: Color, row: Int, column: Int, width: Int? = null, height: Int? = null) {
-    Div(
-        HomeGridCellStyle.toModifier()
-            .setVariable(GridCellColorVar, color)
-            .gridItem(row, column, width, height)
-            .toAttrs()
-    )
-}
 
 @Page
 @Composable
-fun HomePage() {
-    PageLayout("Home") {
-        Row(HeroContainerStyle.toModifier()) {
-            Box {
-                val sitePalette = ColorMode.current.toSitePalette()
+fun Index() {
+    var result by remember { mutableStateOf<SearchResult?>(null) }
+    var query by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var isSearching by remember { mutableStateOf(false) }
 
-                Column(Modifier.gap(2.cssRem)) {
-                    Div(HeadlineTextStyle.toAttrs()) {
-                        SpanText(
-                            "Use this template as your starting point for ", Modifier.color(
-                                when (ColorMode.current) {
-                                    ColorMode.LIGHT -> Colors.Black
-                                    ColorMode.DARK -> Colors.White
-                                }
-                            )
-                        )
-                        SpanText(
-                            "Kobweb",
-                            Modifier
-                                .color(sitePalette.brand.accent)
-                                // Use a shadow so this light-colored word is more visible in light mode
-                                .textShadow(0.px, 0.px, blurRadius = 0.5.cssRem, color = Colors.Gray)
-                        )
-                    }
+    LaunchedEffect(query) {
+        if (result == null && error == null && query.isBlank()) return@LaunchedEffect
+        error = null
+        result = null
+        isSearching = true
+        when (val searchResult = search(query)) {
+            is SearchResponse.Success -> result = searchResult.data
+            is SearchResponse.Error -> error = searchResult.errorMessage
+        }
+        isSearching = false
+    }
 
-                    Div(SubheadlineTextStyle.toAttrs()) {
-                        SpanText("You can read the ")
-                        Link("/about", "About")
-                        SpanText(" page for more information.")
-                    }
+    SmallHeaderLayout(
+        header = {
+            TextInput(
+                text = query,
+                modifier = Modifier.weight(1f),
+                onTextChanged = { query = it },
+            )
+        }
+    ) {
+        val itemModifier = Modifier
+            .align(CenterHorizontally)
+            .margin(leftRight = 1f.em, topBottom = .25f.em)
+            .fadeInFromLeft(.25f)
+        val errorModifier = Modifier.padding(leftRight = 1f.em, topBottom = .5f.em).fadeInFromLeft()
+        if (isSearching) {
+            SpanText("Searching...", itemModifier.padding(leftRight = 1f.em, topBottom = .5f.em))
+        }
+        result?.let { searchResult ->
+            error?.let { Error(it, errorModifier) }
+            Column(horizontalAlignment = CenterHorizontally) {
+                searchResult.stats.takeIf { it.results > 0 }?.let { StatsReport(it, itemModifier) }
 
-                    val ctx = rememberPageContext()
-                    Button(onClick = {
-                        // Change this click handler with your call-to-action behavior
-                        // here. Link to an order page? Open a calendar UI? Play a movie?
-                        // Up to you!
-                        ctx.router.tryRoutingTo("/about")
-                    }, colorScheme = ColorSchemes.Blue) {
-                        Text("This could be your CTA")
+                for ((i, item) in searchResult.items.withIndex()) {
+                    showAfter((i * 150).toLong()) {
+                        Item(item, itemModifier)
                     }
                 }
-            }
-
-            Div(HomeGridStyle
-                .toModifier()
-                .displayIfAtLeast(Breakpoint.MD)
-                .grid {
-                    rows { repeat(3) { size(1.fr) } }
-                    columns { repeat(5) {size(1.fr) } }
-                }
-                .toAttrs()
-            ) {
-                val sitePalette = ColorMode.current.toSitePalette()
-                GridCell(sitePalette.brand.primary, 1, 1, 2, 2)
-                GridCell(ColorSchemes.Monochrome._600, 1, 3)
-                GridCell(ColorSchemes.Monochrome._100, 1, 4, width = 2)
-                GridCell(sitePalette.brand.accent, 2, 3, width = 2)
-                GridCell(ColorSchemes.Monochrome._300, 2, 5)
-                GridCell(ColorSchemes.Monochrome._800, 3, 1, width = 5)
             }
         }
     }
+}
+
+
+val itemBackground
+    @Composable get() = if (ColorMode.current.isDark) rgba(248, 255, 210, .15f) else rgba(255, 225, 123, .15f)
+val itemBorder
+    @Composable get() = if (ColorMode.current.isDark) rgba(248, 255, 210, .5f) else rgba(255, 225, 123, .5f)
+val itemForeground
+    @Composable get() = if (ColorMode.current.isDark) rgb(248, 255, 210) else rgb(60, 30, 10)
+val itemForegroundWeak
+    @Composable get() = if (ColorMode.current.isDark) rgba(248, 255, 210, .85f) else rgba(60, 30, 10, .85f)
+
+@Composable
+private fun Item(item: Item, modifier: Modifier = Modifier) = Column(
+    modifier = modifier
+        .onClick { window.open(item.url, IN_NEW_TAB) }
+        .cursor(Cursor.Pointer)
+        .padding(1f.em)
+        .borderRadius(.5f.em)
+        .border(width = .05f.cssRem, color = itemBorder, style = LineStyle.Solid)
+        .backgroundColor(itemBackground)
+) {
+    SpanText(item.title, modifier = Modifier.fillMaxWidth().color(itemForeground).fontWeight(FontWeight.Bold))
+    SpanText(item.url, modifier = Modifier.color(rgb(223, 130, 108)).margin(bottom = .5f.em))
+    SpanText(item.description, modifier = Modifier.color(itemForegroundWeak))
+}
+
+@Composable
+private fun StatsReport(stats: ResultStats, modifier: Modifier = Modifier.color(Color.gray)) = with(stats) {
+    val duration = remember(stats.durationMs) { if (durationMs < 1000) "$durationMs ms" else "${durationMs / 1000} s" }
+    SpanText("$results results ($duration)", modifier)
+}
+
+private suspend fun search(query: String): SearchResponse {
+    return try {
+        val byteResult = window.api.tryPost(apiPath = "search", body = query.encodeToByteArray())
+        val strResult = byteResult?.decodeToString() ?: return SearchResponse.Error("No Response from Server")
+        Json.decodeFromString(SearchResponse.serializer(), strResult)
+    } catch (e: Exception) {
+        SearchResponse.Error(e.message.toString())
+    }
+}
+
+val FadeInFromLeft by Keyframes {
+    from { Modifier.opacity(.0f).margin(left = (-6).em) }
+    to { Modifier.opacity(1f).margin(left = 0.em) }
+}
+
+@Composable
+fun Error(message: String, modifier: Modifier = Modifier) =
+    SpanText(message, modifier.color(Color.darkred))
+
+@Composable
+private fun Modifier.fadeInFromLeft(durationSeconds: Float = 1f, delaySeconds: Float = 0f) = animation(
+    FadeInFromLeft.toAnimation(
+        delay = delaySeconds.s,
+        duration = durationSeconds.s,
+        iterationCount = AnimationIterationCount.of(1),
+    )
+)
+
+@Composable
+private inline fun showAfter(delayMs: Long, content: @Composable () -> Unit) {
+    var isShown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(delayMs)
+        isShown = true
+    }
+    if (isShown) content()
 }
