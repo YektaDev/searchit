@@ -1,6 +1,29 @@
+# Searchit!
+
+Searchit! is a search engine made from scratch using **Kotlin**, **Kobweb**, **Compose Runtime**, **Ktor**,
+**Coroutines**, **Exposed**, and more.
+
++ Designed to integrate with [Krawler](https://github.com/YektaDev/Krawler) by directly consuming and indexing its
+  output.
++ Non-blocking search.
++ Efficient recent search result caching.
++ Written in less than 2 days, hence it's not by any metrics `clean`!
+
+## About Search Index
+
++ **Error Correction**: Searchit! handles error correction using the **Levenshtein Distance algorithm** to improve 
+  search accuracy. (`Distance = 1`)
++ **Inverted Index of Tokens**: It uses an inverted index of tokens to efficiently retrieve search results.
++ **Token Normalizer**: It normalizes tokens by converting **Arabic** letters to **Persian**, **Arabic** numbers to
+  **Persian**, and removing **all punctuation**. It uses an HTML parser named Jsoup to extract the title and body.
+
+---
+
+## Kobweb Docs (Not Project-Specific)
+
 This is a [Kobweb](https://github.com/varabyte/kobweb) project bootstrapped with the `app` template.
 
-## Getting Started
+### Getting Started
 
 First, run the development server by typing the following command in a terminal under the `site` folder:
 
@@ -16,7 +39,7 @@ using the [Toolbox App](https://www.jetbrains.com/toolbox-app/).
 
 Press `Q` in the terminal to gracefully stop the server.
 
-## Navigating the Project
+### Navigating the Project
 
 This simple project has a couple of example files you can learn from. The following list is not exhaustive but should
 help you get started finding your way around this relatively small example project:
@@ -48,12 +71,12 @@ help you get started finding your way around this relatively small example proje
   time. This page will get rendered if the user visits `(yoursite.com)/about` If you are writing a blog, it can be
   very convenient to write many of your posts using markdown instead of Kotlin code.
 
-### Live Reload
+#### Live Reload
 
 While Kobweb is running, fuel free to modify the code! When you make any changes, Kobweb will notice this
 automatically, and the site will indicate the status of the build and automatically reload when ready.
 
-## Exporting the Project
+### Exporting the Project
 
 When you are ready to ship, you should shutdown the development server and then export the project using:
 
